@@ -534,7 +534,7 @@ public abstract class DefaultHandler implements ProtocolHandler {
     public void setCreditReceived(OdetteFtpSession session, CommandExchangeBuffer cdt) throws OdetteFtpException {
 
         // Reset the credit counter in odette-ftp context.
-        LOGGER.info("[{}] CDT received. Resetting session window credit counter.", session);
+        LOGGER.debug("[{}] CDT received. Resetting session window credit counter.", session);
         resetOutgoingCredits(session);
 
         // Proceed with file transmission.
