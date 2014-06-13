@@ -70,6 +70,8 @@ public class NormalMapping extends AbstractMapping {
         int freeSpace;
         ByteBuffer buffer = ByteBufferFactory.allocate(virtualFile.getRecordFormat() == TEXTFILE ? MAX_SUBRECORD_LENGTH + 1: MAX_SUBRECORD_LENGTH);
         byte[] subrecord = null;
+        deb.setDataSize(0);
+        deb.setUnitCount(0);
         while ((freeSpace = deb.availableBytes()) > 0) {
 
             boolean endOfRecord = false;
@@ -83,6 +85,7 @@ public class NormalMapping extends AbstractMapping {
                 eof = true;
                 break;
             }
+            totalBytesRead += bytesRead;
 
             int subrecordSize = Math.min(Math.min(bytesRead, MAX_SUBRECORD_LENGTH), freeSpace - 1);
 
@@ -120,7 +123,9 @@ public class NormalMapping extends AbstractMapping {
 
             // discard additional octets read
             if (subrecordSize < bytesRead) {
-                discardReadBytes(in, (bytesRead - subrecordSize));
+                int discardSize = (bytesRead - subrecordSize);
+                totalBytesRead -= discardSize;
+                discardReadBytes(in, discardSize);
                 eof = false;
             }
 
@@ -147,7 +152,6 @@ public class NormalMapping extends AbstractMapping {
              * Even when it's a null sized subrecord.
              */
             deb.writeData(subrecord, endOfRecord, false, (byte) (subrecordSize & 0xff ));
-            totalBytesRead += subrecordSize;
 
         }
 
