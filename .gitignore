@@ -1,1 +1,9 @@
 target/
+.settings
+.project
+.gitignore
+.classpath
+core/.settings
+core/.project
+core/.gitignore
+core/.classpath
