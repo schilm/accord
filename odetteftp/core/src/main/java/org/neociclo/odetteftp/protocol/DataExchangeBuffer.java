@@ -20,10 +20,14 @@ import static org.neociclo.odetteftp.protocol.CommandIdentifier.DATA;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 
 import org.neociclo.odetteftp.OdetteFtpException;
 import org.neociclo.odetteftp.util.ByteBufferFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DataExchange is an type of Odette FTP Exchange Buffer used for encapsulate
@@ -41,10 +45,11 @@ import org.neociclo.odetteftp.util.ByteBufferFactory;
  *  | D | R |           | R |           | R |           |   /
  *  o-------------------------------------------------------
  * </pre>
- * 
  * @author Rafael Marins
  */
 public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataExchangeBuffer.class);
 
     public static class SubrecordHeaderIterator implements Iterator<SubrecordHeader> {
 
@@ -78,7 +83,7 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
         public void remove() {
             throw new UnsupportedOperationException();
         }
-        
+
     }
 
     /**
@@ -91,8 +96,8 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
      *         | o | F | C O U N T             |
      *         | R |   |                       |
      *         o-------------------------------o
-     *
-     *
+     * 
+     * 
      *   Bits
      * 
      *    0     End of Record Flag
@@ -127,7 +132,6 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
 
         /**
          * Subrecord Count: last 6 bits
-         * 
          * @param headerOctet
          * @return
          */
@@ -137,7 +141,6 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
 
         /**
          * Compression Flag: is second bit set?
-         * 
          * @param headerOctet
          * @return
          */
@@ -147,7 +150,6 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
 
         /**
          * End of Record: is first bit set?
-         * 
          * @param headerOctet
          * @return
          */
@@ -172,15 +174,11 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
         int dataIndex;
 
         /**
-         * @param startPos
-         *            the Subrecord position within the Data Exchange Buffer
-         *            (after the Subrecord header).
-         * @param eor
-         *            End of Record flag.
-         * @param compr
-         *            Compression flag.
-         * @param count
-         *            Subrecord count.
+         * @param startPos the Subrecord position within the Data Exchange
+         * Buffer (after the Subrecord header).
+         * @param eor End of Record flag.
+         * @param compr Compression flag.
+         * @param count Subrecord count.
          */
         public SubrecordHeader(int startPos, boolean eor, boolean compr, byte count) {
             super();
@@ -205,7 +203,6 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
          * <p>
          * As six bits are available, the next subrecord may represent between 0
          * and 63 octets of the Virtual File.
-         * 
          * @return
          */
         public byte getCount() {
@@ -218,7 +215,6 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
 
         /**
          * Set to indicate that the next subrecord is compressed.
-         * 
          * @return
          */
         public boolean isCompressed() {
@@ -231,7 +227,6 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
          * <p>
          * Unstructured files are transmitted as a single record, in this case
          * the flag acts as an end of file marker.
-         * 
          * @return
          */
         public boolean isEndOfRecord() {
@@ -241,107 +236,120 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
         @Override
         public String toString() {
             StringBuffer sb = new StringBuffer("SubrecordHeader (count: ");
-            sb.append(getCount()).append(", compr: ").append(isCompressed()).append(", eor: ").append(isEndOfRecord());
+            sb.append(getCount()).append(", compr: ").append(isCompressed()).append(", eor: ")
+                    .append(isEndOfRecord());
             sb.append(")");
             return sb.toString();
         }
 
     }
 
-//    public static boolean isCompleteBuffer(ByteBuffer in) {
-//
-//        LOGGER.trace("isCompleteBuffer()   entering");
-//        
-//        /*
-//         * When only one octet is free in the Data Exchange Buffer it cannot be
-//         * filled with a subrecord.
-//         */
-//        if (in.remaining() <= 1) {
-//            LOGGER.trace("isCompleteBuffer()   is complete since there is no buffer remaining");
-//            return true;
-//        }
-//
-//        /*
-//         * Use parseSubrecordsHeaders() function to determine if the given Data
-//         * Exchange Buffer is complete.
-//         */
-//        SubrecordHeader[] subrecords = parseSubrecordHeaders(in);
-//
-//        boolean complete = (subrecords != null);
-//        LOGGER.trace("isCompleteBuffer()   exiting = {}", complete);
-//
-//        return complete;
-//    }
-//
-//    /**
-//     * @param in
-//     * @return array of Subrecord Header object instances determining buffer
-//     *         boundaries, or <code>null</code> when buffer is incomplete.
-//     */
-//    private static SubrecordHeader[] parseSubrecordHeaders(ByteBuffer in) {
-//
-//        LOGGER.trace("parseSubrecordHeaders()   entering");
-//
-//        ArrayList<SubrecordHeader> subrecords = new ArrayList<SubrecordHeader>();
-//
-//        int entryPos = in.position();
-//
-//        int pos = 1;
-//
-//        while (in.limit() > pos) {
-//
-//            /* Get the Subrecord Header octet at the expected position. */
-//            short header = in.getShort();
-//
-//            if (header == 0) {
-//                LOGGER.debug("parseSubrecordHeaders() exit loop when header octet is zero");
-//                break;
-//            }
-//
-//            boolean endOfRecord = SubrecordHeader.isEndOfRecord(header);
-//            boolean compressed = SubrecordHeader.isCompressed(header);
-//            byte size = SubrecordHeader.getSubrecordCount(header);
-//
-////            in.position(pos);
-//            LOGGER.trace("parseSubrecordHeaders() pos = {}   size = {}   compressed = {}   buffer = {}", new Object[] {
-//                    pos, size, compressed, in});
-//
-//            /*
-//             * Data Exchange Buffer is INCOMPLETE when the expected Subrecord
-//             * end position is greater than the buffer limit. Then return null.
-//             */
-//            int subrecordEnd = pos + (compressed ? 1 : size);
-//            if (in.limit() < subrecordEnd) {
-//                LOGGER.error("parseSubrecordHeaders()   buffer is incomplete (exit) " );
-//                return null;
-//            }
-//
-//            /* Add a new Subrecord Header object instance to the array. */
-//            SubrecordHeader shdr = new SubrecordHeader(pos, endOfRecord, compressed, size);
-//            subrecords.add(shdr);
-//
-//            /*
-//             * Calculate the next Subrecord Header position within the Data
-//             * Exchange Buffer.
-//             */
-//            pos = subrecordEnd + 1;
-//
-//        }
-//
-//        SubrecordHeader[] result = subrecords.toArray(new SubrecordHeader[subrecords.size()]);
-//        LOGGER.trace("parseSubrecordHeaders()   exiting {}", Arrays.toString(result));
-//
-//        in.position(entryPos);
-//
-//        return result;
-//    }
+    public static boolean isCompleteBuffer(ByteBuffer in) {
+
+        LOGGER.trace("isCompleteBuffer()   entering");
+
+        /*
+         * When only one octet is free in the Data Exchange Buffer it cannot be
+         * filled with a subrecord.
+         */
+        if (in.remaining() <= 1) {
+            LOGGER.trace("isCompleteBuffer()   is complete since there is no buffer remaining");
+            return true;
+        }
+
+        /*
+         * Use parseSubrecordsHeaders() function to determine if the given Data
+         * Exchange Buffer is complete.
+         */
+        SubrecordHeader[] subrecords = parseSubrecordHeaders(in);
+
+        boolean complete = (subrecords != null);
+        LOGGER.trace("isCompleteBuffer()   exiting = {}", complete);
+
+        return complete;
+    }
+
+    /**
+     * @param in
+     * @return array of Subrecord Header object instances determining buffer
+     * boundaries, or <code>null</code> when buffer is incomplete.
+     */
+    private static SubrecordHeader[] parseSubrecordHeaders(ByteBuffer in) {
+
+        LOGGER.trace("parseSubrecordHeaders()   entering");
+        in.rewind();
+        ArrayList<SubrecordHeader> subrecords = new ArrayList<SubrecordHeader>();
+
+        int entryPos = in.position();
+
+        int pos = 0;
+
+        while (in.limit() > pos) {
+
+            /* Get the Subrecord Header octet at the expected position. */
+            byte header = in.get(pos);
+
+            if (header == 0) {
+                LOGGER.debug("parseSubrecordHeaders() exit loop when header octet is zero");
+                break;
+            }
+
+            boolean endOfRecord = SubrecordHeader.isEndOfRecord(header);
+            boolean compressed = SubrecordHeader.isCompressed(header);
+            byte size = SubrecordHeader.getSubrecordCount(header);
+
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("parseSubrecordHeaders() HEADER[0b{}]=0x{}: pos = {}   size = {}   compressed = {}",
+                        new Object[] { Integer.toBinaryString(header & 0xff), Integer.toHexString(header & 0xff),
+                                pos, size, compressed });
+            }
+            
+            /*
+             * Data Exchange Buffer is INCOMPLETE when the expected Subrecord
+             * end position is greater than the buffer limit. Then return null.
+             */
+            int subrecordEnd = pos + (compressed ? 1 : size);
+            if (in.limit() < subrecordEnd) {
+                LOGGER.error("parseSubrecordHeaders()   buffer is incomplete (exit) ");
+                return null;
+            }
+
+            /* Add a new Subrecord Header object instance to the array. */
+            SubrecordHeader shdr = new SubrecordHeader(pos, endOfRecord, compressed, size);
+            subrecords.add(shdr);
+            
+            if(endOfRecord){
+                LOGGER.debug("parseSubrecordHeaders() exit loop when endOfRecord is reached");
+                break;
+            }
+            
+            /*
+             * Calculate the next Subrecord Header position within the Data
+             * Exchange Buffer.
+             */
+            pos = subrecordEnd + 1;
+
+        }
+
+        SubrecordHeader[] result = subrecords.toArray(new SubrecordHeader[subrecords.size()]);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("parseSubrecordHeaders()   exiting {}", Arrays.toString(result));
+        }
+        in.position(entryPos);
+
+        return result;
+    }
 
     /** The buffer instance. */
     private ByteBuffer data;
     private int unitCount;
 
-//    /** Determine the subrecords boundaries within this Data Exchange Buffer. */
-//    private SubrecordHeader[] subrecordHeaders;
+    // /** Determine the subrecords boundaries within this Data Exchange Buffer.
+    // */
+    private SubrecordHeader[] subrecordHeaders;
+
+    /** The data size. */
+    private int dataSize;
 
     public DataExchangeBuffer(int dataExchangeBufferSize) {
         super();
@@ -389,14 +397,13 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
         data.clear();
     }
 
-//    public SubrecordHeader[] getSubrecordHeaders() {
-//        if (subrecordHeaders == null) {
-//            subrecordHeaders = parseSubrecordHeaders(getBuffer());
-//            LOGGER.trace("getSubrecordHeaders() method return is {}", subrecordHeaders);
-//        }
-//
-//        return subrecordHeaders;
-//    }
+    public SubrecordHeader[] getSubrecordHeaders() {
+        subrecordHeaders = parseSubrecordHeaders(data.asReadOnlyBuffer());
+
+        LOGGER.trace("getSubrecordHeaders() method return is {}", subrecordHeaders);
+
+        return subrecordHeaders;
+    }
 
     public ByteBuffer readData() {
         data.rewind();
@@ -440,18 +447,18 @@ public class DataExchangeBuffer implements OdetteFtpExchangeBuffer {
         return unitCount;
     }
 
-//    public int getDataSize() {
-//        if (dataSize == 0) {
-//            int total = 0;
-//            SubrecordHeader[] headers = getSubrecordHeaders();
-//            for (SubrecordHeader sh : headers)
-//                total += sh.getCount();
-//            setDataSize(total);
-//        }
-//        return dataSize;
-//    }
-//
-//    public void setDataSize(int realDataSize) {
-//        this.dataSize = realDataSize;
-//    }
+    public int getDataSize() {
+        int total = 0;
+        SubrecordHeader[] headers = getSubrecordHeaders();
+        for (SubrecordHeader sh : headers) {
+            total += sh.getCount();
+        }
+        setDataSize(total);
+
+        return dataSize;
+    }
+
+    public void setDataSize(int realDataSize) {
+        this.dataSize = realDataSize;
+    }
 }
